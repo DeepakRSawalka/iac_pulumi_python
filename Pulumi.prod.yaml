@@ -1,3 +1,12 @@
 config:
   aws:profile: prod
   aws:region: us-east-1
+  pulumi_python:vpcName: "vpc"
+  pulumi_python:vpcCidrBlock: "10.0.0.0/16"
+  pulumi_python:internetGatewayName: "myInternetGateway"
+  pulumi_python:publicRtName: "publicRouteTable"
+  pulumi_python:privateRtName: "privateRouteTable"
+  pulumi_python:publicSubnet: "publicSubnet"
+  pulumi_python:privateSubnet: "privateSubnet"
+  pulumi_python:cidrBlock: "0.0.0.0/0"
+  pulumi_python:subnetMask: 24
