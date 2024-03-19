@@ -1,14 +1,28 @@
 config:
   aws:profile: dev
   aws:region: us-west-1
-  pulumi_python:vpcName: "vpc"
-  pulumi_python:vpcCidrBlock: "10.0.0.0/16"
+  pulumi_python:allocatedStorage: "20"
+  pulumi_python:amiId: "ami-07d1910a890ed8e71"
+  pulumi_python:dbName: "csye6225"
+  pulumi_python:dbPassword:
+    secure: AAABALlAbT+YdzwQPQQrgYhPEbo5JvOjDR8owNOuPNkVNIHMpy3uHA==
+  pulumi_python:dbSubnetGrpName: "dbsubnetgrp"
+  pulumi_python:dbUsername:
+    secure: AAABAC6dgBNo6JXWYLCzGkp7rhIL8EoXmEOdOE7lbRUt6sFx+poiOg==
+  pulumi_python:engine: "PostgreSQL"
+  pulumi_python:engineVersion: "16.1"
+  pulumi_python:identifier: "csye6225"
+  pulumi_python:instanceClass: "db.t2.micro"
   pulumi_python:internetGatewayName: "myInternetGateway"
-  pulumi_python:publicRtName: "publicRouteTable"
+  pulumi_python:myParameterGroupName: "myParameterGroup"
   pulumi_python:privateRtName: "privateRouteTable"
-  pulumi_python:publicSubnet: "publicSubnet"
   pulumi_python:privateSubnet: "privateSubnet"
-  pulumi_python:cidrBlock: "0.0.0.0/0"
-  pulumi_python:subnetMask: 24
-
-  
+  pulumi_python:publicCidrBlock: "0.0.0.0/0"
+  pulumi_python:publicRtName: "publicRouteTable"
+  pulumi_python:publicSubnet: "publicSubnet"
+  pulumi_python:storageType: "gp2"
+  pulumi_python:subnetMask: "24"
+  pulumi_python:vpcCidrBlock: "10.0.0.0/16"
+  pulumi_python:vpcName: "vpc"
+  pulumi_python:keyPair: "deepak-dev-keypair"
+  pulumi_python:ec2Name: "web-app"
