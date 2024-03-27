@@ -1,20 +1,20 @@
 config:
   aws:profile: dev
-  aws:region: us-west-1
+  aws:region: us-east-1
   pulumi_python:allocatedStorage: "20"
-  pulumi_python:amiId: "ami-07d1910a890ed8e71"
-  pulumi_python:dbName: "csye6225"
+  pulumi_python:amiId: "ami-00443cd3149898718"
+  pulumi_python:dbName: "app_db"
   pulumi_python:dbPassword:
     secure: AAABALlAbT+YdzwQPQQrgYhPEbo5JvOjDR8owNOuPNkVNIHMpy3uHA==
   pulumi_python:dbSubnetGrpName: "dbsubnetgrp"
   pulumi_python:dbUsername:
     secure: AAABAC6dgBNo6JXWYLCzGkp7rhIL8EoXmEOdOE7lbRUt6sFx+poiOg==
-  pulumi_python:engine: "PostgreSQL"
+  pulumi_python:engine: "postgres"
   pulumi_python:engineVersion: "16.1"
   pulumi_python:identifier: "csye6225"
-  pulumi_python:instanceClass: "db.t2.micro"
+  pulumi_python:instanceClass: "db.t3.micro"
   pulumi_python:internetGatewayName: "myInternetGateway"
-  pulumi_python:myParameterGroupName: "myParameterGroup"
+  pulumi_python:myParameterGroupName: "myparametergroup"
   pulumi_python:privateRtName: "privateRouteTable"
   pulumi_python:privateSubnet: "privateSubnet"
   pulumi_python:publicCidrBlock: "0.0.0.0/0"
