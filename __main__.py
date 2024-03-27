@@ -148,7 +148,7 @@ appSecurityGroup = aws.ec2.SecurityGroup("app-sg",
             "to_port": 443,
             "cidr_blocks": [publicCidrBlock]
         },
-        # Replace 5000 with the port your application runs on
+        
         {
             "protocol": "tcp",
             "from_port": 5000,
@@ -176,14 +176,7 @@ rdsSecurityGroup = aws.ec2.SecurityGroup("rds-sg",
             "protocol": "tcp",
             "from_port": 5432,
             "to_port": 5432,
-            "security_groups": [appSecurityGroup]  # Reference to app security group ID
-        },
-        # If you also want to allow PostgreSQL (5432), add another rule here
-        {
-            "protocol": "tcp",
-            "from_port": 5432,
-            "to_port": 5432,
-            "security_groups": [appSecurityGroup]  # Reference to app security group ID
+            "security_groups": [appSecurityGroup.id]  
         }
     ],
     egress=[
@@ -198,12 +191,13 @@ rdsSecurityGroup = aws.ec2.SecurityGroup("rds-sg",
 )
 
 dbParameterGroup = aws.rds.ParameterGroup(myParameterGroupName,
-    family="PostgreSOL 16.1",
+    family="Postgres16",
     description="Custom parameter group for PostgreSOL 16.1",
     parameters=[
         {
             "name": "max_connections",
-            "value": "100"
+            "value": "100",
+            "applyMethod": "pending-reboot" 
         }
     ]
 )
@@ -234,16 +228,46 @@ db_instance = aws.rds.Instance("mydbinstance",
     db_name=dbName
 )
 
+
+def user_data(args):
+    endpoint, username, password, database_name = args
+    parts = endpoint.split(':')
+    endpoint_host = parts[0]
+    db_port = parts[1] if len(parts) > 1 else 'defaultPort'
+    
+    bash_script = f"""#!/bin/bash
+ENV_FILE="/home/ec2-user/webapp/.env"
+
+# Create or overwrite the environment file with the environment variables
+echo "DBHOST={endpoint_host}" > $ENV_FILE
+echo "DBPORT={db_port}" >> $ENV_FILE
+echo "DBUSER={username}" >> $ENV_FILE
+echo "DBPASS={password}" >> $ENV_FILE
+echo "DATABASE={database_name}" >> $ENV_FILE
+echo "PORT=5000" >> $ENV_FILE
+echo "CSV_PATH=/home/ec2-user/webapp/users.csv" >> $ENV_FILE
+
+# Optionally, you can change the owner and group of the file if needed
+sudo chown ec2-user:ec2-group $ENV_FILE
+
+# Adjust the permissions of the environment file
+sudo chmod 600 $ENV_FILE
+"""
+    return bash_script
+
+user_data_script = pulumi.Output.all(db_instance.endpoint, dbUsername, dbPassword, dbName).apply(user_data)
+
+'''
 user_data = pulumi.Output.all(db_instance.endpoint, dbUsername, dbPassword, dbName).apply(
     lambda args: f"""#!/bin/bash
 ENV_FILE="/home/admin/webapp/.env"
 
 # Create or overwrite the environment file with the environment variables
-echo "DBHOST={args[0].split(':')[0]}" > $ENV_FILE
-echo "DBPORT={args[0].split(':')[1]}" >> $ENV_FILE
-echo "DBUSER={args[1]}" >> $ENV_FILE
-echo "DBPASS={args[2]}" >> $ENV_FILE
-echo "DATABASE={args[3]}" >> $ENV_FILE
+echo "DBHOST=${args[0].split(':')[0]}" > $ENV_FILE
+echo "DBPORT=${args[0].split(':')[1]}" >> $ENV_FILE
+echo "DBUSER=${args[1]}" >> $ENV_FILE
+echo "DBPASS=${args[2]}" >> $ENV_FILE
+echo "DATABASE=app_db" >> $ENV_FILE
 echo "PORT=5000" >> $ENV_FILE
 echo "CSV_PATH=/home/admin/webapp/users.csv" >> $ENV_FILE
 
@@ -253,7 +277,7 @@ sudo chown admin:admin $ENV_FILE
 # Adjust the permissions of the environment file
 sudo chmod 600 $ENV_FILE
 """
-)
+)'''
 
 # Create an EC2 instance
 ec2_instance = aws.ec2.Instance(ec2Name,
@@ -272,8 +296,7 @@ ec2_instance = aws.ec2.Instance(ec2Name,
     tags={
         "Name": ec2Name,
     },
-    user_data=user_data,
-    opts=pulumi.ResourceOptions(depends_on=public_subnet_ids)
+    user_data=user_data_script
 )
 
 
@@ -283,7 +306,6 @@ pulumi.export("privateSubnetIds", pulumi.Output.all(*private_subnet_ids))
 pulumi.export("internetgatewayId", internet_gateway.id)
 pulumi.export("publicroutetableId",public_route_table.id)
 pulumi.export("privateroutetableId",private_route_table.id)
-pulumi.export("appSecurityGroup",appSecurityGroup.id)
 pulumi.export("appSecurityGroup",appSecurityGroup.id)
 pulumi.export("rdsSecurityGroup",rdsSecurityGroup.id)
 pulumi.export("ec2PublicIP",ec2_instance.public_ip)
