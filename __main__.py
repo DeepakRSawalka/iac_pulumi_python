@@ -39,6 +39,8 @@ dbPassword = config.require_secret("dbPassword")
 amiId = config.require("amiId")
 keyPair = config.require("keyPair")
 ec2Name = config.require("ec2Name")
+domainName = config.require("domainName")
+hosted_zone_id = config.require("hosted_zone_id")
 
 
 # Create a new VPC for the current AWS region.
@@ -257,27 +259,51 @@ sudo chmod 600 $ENV_FILE
 
 user_data_script = pulumi.Output.all(db_instance.endpoint, dbUsername, dbPassword, dbName).apply(user_data)
 
-'''
-user_data = pulumi.Output.all(db_instance.endpoint, dbUsername, dbPassword, dbName).apply(
-    lambda args: f"""#!/bin/bash
-ENV_FILE="/home/admin/webapp/.env"
+cloud_watch_agent_server_policy = aws.iam.Policy("cloudWatchAgentServerPolicy",
+    description="A policy that allows sending logs to CloudWatch",
+    policy={
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "cloudwatch:PutMetricData",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeTags",
+                    "logs:PutLogEvents",
+                    "logs:DescribeLogStreams",
+                    "logs:DescribeLogGroups",
+                    "logs:CreateLogStream",
+                    "logs:CreateLogGroup"
+                ],
+                "Resource": "*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["ssm:GetParameter"],
+                "Resource": "arn:aws:ssm:*:*:parameter/AmazonCloudWatch-*"
+            }
+        ]
+    })
 
-# Create or overwrite the environment file with the environment variables
-echo "DBHOST=${args[0].split(':')[0]}" > $ENV_FILE
-echo "DBPORT=${args[0].split(':')[1]}" >> $ENV_FILE
-echo "DBUSER=${args[1]}" >> $ENV_FILE
-echo "DBPASS=${args[2]}" >> $ENV_FILE
-echo "DATABASE=app_db" >> $ENV_FILE
-echo "PORT=5000" >> $ENV_FILE
-echo "CSV_PATH=/home/admin/webapp/users.csv" >> $ENV_FILE
+role = aws.iam.Role("cloudWatchAgentRole",
+    assume_role_policy={
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Action": "sts:AssumeRole",
+            "Principal": {
+                "Service": "ec2.amazonaws.com",
+            },
+            "Effect": "Allow",
+        }]
+    })
 
-# We change the owner and group of the file if needed
-sudo chown admin:admin $ENV_FILE
+aws.iam.RolePolicyAttachment("cloudWatchAgentRoleAttachment",
+    role=role.name,
+    policy_arn=cloud_watch_agent_server_policy.arn)
 
-# Adjust the permissions of the environment file
-sudo chmod 600 $ENV_FILE
-"""
-)'''
+instance_profile = aws.iam.InstanceProfile("cloudWatchAgentInstanceProfile",
+    role=role.name)
 
 # Create an EC2 instance
 ec2_instance = aws.ec2.Instance(ec2Name,
@@ -296,8 +322,18 @@ ec2_instance = aws.ec2.Instance(ec2Name,
     tags={
         "Name": ec2Name,
     },
-    user_data=user_data_script
+    user_data=user_data_script,
+     iam_instance_profile=instance_profile.name,
 )
+
+a_record = aws.route53.Record("aRecord",
+    zone_id=hosted_zone_id,
+    name=domainName,
+    type="A",
+    ttl=60,
+    records=[pulumi.Output.from_input(ec2_instance.public_ip)])
+
+
 
 
 pulumi.export("vpcId", vpc.id)
@@ -309,4 +345,7 @@ pulumi.export("privateroutetableId",private_route_table.id)
 pulumi.export("appSecurityGroup",appSecurityGroup.id)
 pulumi.export("rdsSecurityGroup",rdsSecurityGroup.id)
 pulumi.export("ec2PublicIP",ec2_instance.public_ip)
+pulumi.export("recordName",a_record.name)
+pulumi.export("recordType",a_record.type)
+pulumi.export("recordTtl",a_record.ttl)
 
