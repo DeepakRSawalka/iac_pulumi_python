@@ -26,3 +26,5 @@ config:
   pulumi_python:vpcName: "vpc"
   pulumi_python:keyPair: "deepak-prod-keypair"
   pulumi_python:ec2Name: "web-app"
+  pulumi_python:domainName: "prod.deepakcsye6225.me"
+   pulumi_python:hosted_zone_id: "prod.deepakcsye6225.me"
