@@ -41,6 +41,15 @@ keyPair = config.require("keyPair")
 ec2Name = config.require("ec2Name")
 domainName = config.require("domainName")
 hosted_zone_id = config.require("hosted_zone_id")
+applicationPort = config.require("applicationPort")
+listenerPort = config.require("listenerPort")
+maxSize = config.require("maxSize")
+minSize = config.require("minSize")
+cap = config.require("cap")
+coolDown = config.require("coolDown")
+period = config.require("period")
+upThreshold = config.require("upThreshold")
+downThreshold = config.require("downThreshold")
 
 
 # Create a new VPC for the current AWS region.
@@ -125,6 +134,34 @@ for i, subnet_id in enumerate(private_subnet_ids):
         subnet_id=subnet_id
     )
 
+lbSecurityGroup = aws.ec2.SecurityGroup("lb-sg",
+    vpc_id=vpc.id,
+    description="Load Balancer Security Group",
+    ingress=[
+        {
+            "protocol": "tcp",
+            "from_port": 80,
+            "to_port": 80,
+            "cidr_blocks": [publicCidrBlock]
+        },
+        {
+            "protocol": "tcp",
+            "from_port": 443,
+            "to_port": 443,
+            "cidr_blocks": [publicCidrBlock]
+        },
+    ],
+    egress=[
+        # Allow all outgoing traffic from the load balancer
+        {
+            "protocol": "-1",
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": [publicCidrBlock]
+        },
+    ])
+
+
 appSecurityGroup = aws.ec2.SecurityGroup("app-sg",
     vpc_id=vpc.id,
     description="Application Security Group",
@@ -134,28 +171,14 @@ appSecurityGroup = aws.ec2.SecurityGroup("app-sg",
             "protocol": "tcp",
             "from_port": 22,
             "to_port": 22,
-            "cidr_blocks": [publicCidrBlock]
-        },
-        # Allow HTTP (80) traffic
-        {
-            "protocol": "tcp",
-            "from_port": 80,
-            "to_port": 80,
-            "cidr_blocks": [publicCidrBlock]
-        },
-        # Allow HTTPS (443) traffic 
-        {
-            "protocol": "tcp",
-            "from_port": 443,
-            "to_port": 443,
-            "cidr_blocks": [publicCidrBlock]
+            "cidr_blocks": [lbSecurityGroup.id]
         },
         
         {
             "protocol": "tcp",
-            "from_port": 5000,
-            "to_port": 5000,
-            "cidr_blocks": [publicCidrBlock]
+            "from_port": applicationPort,
+            "to_port": applicationPort,
+            "cidr_blocks": [lbSecurityGroup.id]
         },
     ],
     egress=[
@@ -254,6 +277,10 @@ sudo chown ec2-user:ec2-group $ENV_FILE
 
 # Adjust the permissions of the environment file
 sudo chmod 600 $ENV_FILE
+
+# Configure and restart the CloudWatch Agent
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+sudo systemctl restart amazon-cloudwatch-agent
 """
     return bash_script
 
@@ -326,13 +353,129 @@ ec2_instance = aws.ec2.Instance(ec2Name,
      iam_instance_profile=instance_profile.name,
 )
 
+# Create a Load Balancer
+app_load_balancer = aws.lb.LoadBalancer("appLoadBalancer",
+    internal=False,
+    security_groups=[lbSecurityGroup.id],
+    subnets=public_subnet_ids,
+    enable_deletion_protection=False)
+
+# Create a Target Group
+target_group = aws.lb.TargetGroup("targetGroup",
+    port=applicationPort,
+    protocol="HTTP",
+    vpc_id=vpc.id,
+    target_type="instance",
+    health_check=aws.lb.TargetGroupHealthCheckArgs(
+        enabled=True,
+        path="/healthz"
+    ))
+
+# Create a Listener
+listener = aws.lb.Listener("listener",
+    load_balancer_arn=app_load_balancer.arn,
+    port=listenerPort,
+    default_actions=[aws.lb.ListenerDefaultActionArgs(
+        type="forward",
+        target_group_arn=target_group.arn,
+    )])
+
+# Create a Launch Template
+launch_template = aws.ec2.LaunchTemplate("launch_template",
+    image_id=amiId,
+    instance_type="t2.micro",
+    key_name=keyPair,
+    network_interfaces=[aws.ec2.LaunchTemplateNetworkInterfaceArgs(
+        associate_public_ip_address=True,
+        security_groups=[appSecurityGroup.id],
+    )],
+    user_data=user_data,  
+    iam_instance_profile=aws.ec2.LaunchTemplateIamInstanceProfileArgs(
+        name=instance_profile.name,
+    ))
+
+# Create an Auto Scaling Group
+auto_scaling_group = aws.autoscaling.Group("webAppAutoScalingGroup",
+    max_size=maxSize,
+    min_size=minSize,
+    desired_capacity=cap,
+    vpc_zone_identifiers=pulumi.Output.from_input(public_subnet_ids),
+    launch_template=aws.autoscaling.GroupLaunchTemplateArgs(
+        id=launch_template.id,
+        version="$Latest",
+    ),
+    tags=[{
+        "key": "Name",
+        "value": "web-app",
+        "propagate_at_launch": True,
+    }],
+    default_cooldown=60,
+    target_group_arns=[target_group.arn])
+
+# Create scale up policy
+scale_up_policy = aws.autoscaling.Policy("scaleUp",
+    autoscaling_group_name=auto_scaling_group.name,
+    cooldown=coolDown,
+    adjustment_type="ChangeInCapacity",
+    scaling_adjustment=1,
+    metric_aggregation_type="Average",
+    policy_type="SimpleScaling"
+)
+
+# Create scale down policy
+scale_down_policy = aws.autoscaling.Policy("scaleDown",
+    autoscaling_group_name=auto_scaling_group.name,
+    cooldown=coolDown,
+    adjustment_type="ChangeInCapacity",
+    scaling_adjustment=-1,
+    metric_aggregation_type="Average",
+    policy_type="SimpleScaling"
+)
+
+# Create a CPU high CloudWatch alarm
+cpu_high_alarm = aws.cloudwatch.MetricAlarm("cpuHighAlarm",
+    metric_name="CPUUtilization",
+    namespace="AWS/EC2",
+    statistic="Average",
+    period=period,
+    evaluation_periods=1,
+    threshold=upThreshold,
+    comparison_operator="GreaterThanThreshold",
+    alarm_actions=[scale_up_policy.arn],
+    dimensions={"AutoScalingGroupName": auto_scaling_group.name}
+)
+
+# Create a CPU low CloudWatch alarm
+cpu_low_alarm = aws.cloudwatch.MetricAlarm("cpuLowAlarm",
+    metric_name="CPUUtilization",
+    namespace="AWS/EC2",
+    statistic="Average",
+    period=period,
+    evaluation_periods=1,
+    threshold=downThreshold,
+    comparison_operator="LessThanThreshold",
+    alarm_actions=[scale_down_policy.arn],
+    dimensions={"AutoScalingGroupName": auto_scaling_group.name}
+)
+
+'''
 a_record = aws.route53.Record("aRecord",
     zone_id=hosted_zone_id,
     name=domainName,
     type="A",
     ttl=60,
-    records=[pulumi.Output.from_input(ec2_instance.public_ip)])
+    records=[pulumi.Output.from_input(ec2_instance.public_ip)])'''
 
+aRecord = aws.route53.Record("aRecord",
+    zone_id=hosted_zone_id,
+    name=domainName,
+    type="A",
+    aliases=[{
+        "name": app_load_balancer.dns_name,
+        "zone_id": app_load_balancer.zone_id,
+        "evaluate_target_health": True,
+    }]
+)
 
 
 
@@ -345,7 +488,8 @@ pulumi.export("privateroutetableId",private_route_table.id)
 pulumi.export("appSecurityGroup",appSecurityGroup.id)
 pulumi.export("rdsSecurityGroup",rdsSecurityGroup.id)
 pulumi.export("ec2PublicIP",ec2_instance.public_ip)
-pulumi.export("recordName",a_record.name)
-pulumi.export("recordType",a_record.type)
-pulumi.export("recordTtl",a_record.ttl)
+pulumi.export("recordName",aRecord.name)
+pulumi.export("recordType",aRecord.type)
+# pulumi.export("recordTtl",a_record.ttl)
+pulumi.export("lbSecurityGroup",lbSecurityGroup.id)
 
