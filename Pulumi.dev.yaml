@@ -1,39 +1,52 @@
 config:
-  aws:profile: dev
   aws:aws_region: us-east-1
+  aws:profile: dev
+  gcp:gcp_region: us-east4
+  gcp:projectId: csye6225-dev-405701
+  pulumi_python:DynamoDbTableName: "csye6225DynamoDb"
+  pulumi_python:accountId: "685750396583"
   pulumi_python:allocatedStorage: "20"
   pulumi_python:amiId: "ami-0a1f1399e2bf1fc13"
+  pulumi_python:applicationPort: "5000"
+  pulumi_python:bucketAccountId: "bucketdevid04"
+  pulumi_python:bucketDisplayName: "bucketDevServiceAccount"
+  pulumi_python:cap: "1"
+  pulumi_python:coolDown: "60"
   pulumi_python:dbName: "app_db"
   pulumi_python:dbPassword:
     secure: AAABALlAbT+YdzwQPQQrgYhPEbo5JvOjDR8owNOuPNkVNIHMpy3uHA==
   pulumi_python:dbSubnetGrpName: "dbsubnetgrp"
   pulumi_python:dbUsername:
     secure: AAABAC6dgBNo6JXWYLCzGkp7rhIL8EoXmEOdOE7lbRUt6sFx+poiOg==
+  pulumi_python:domainName: "dev.deepakcsye6225.me"
+  pulumi_python:downThreshold: "1"
+  pulumi_python:ec2Name: "web-app"
   pulumi_python:engine: "postgres"
   pulumi_python:engineVersion: "16.1"
+  pulumi_python:gcpBucketName: "deepak-dev-bucket"
+  pulumi_python:hosted_zone_id: "Z081572234LPBC8PBCQ6V"
   pulumi_python:identifier: "csye6225"
   pulumi_python:instanceClass: "db.t3.micro"
   pulumi_python:internetGatewayName: "myInternetGateway"
+  pulumi_python:keyPair: "deepak-dev-keypair"
+  pulumi_python:lambdaFilePath: "../serverless_python"
+  pulumi_python:listenerPort: "80"
+  pulumi_python:location: "US"
+  pulumi_python:mailgunApiKey:
+    secure: AAABAMv8bh5RgD5ut+hZyHFGxFGnDuqZUlHsoGg5Gws1YJOtcLM2TJsB8N8dDMku0Yj+V7u89gwbHsrdYtoKjtTwVsCuc7ghPmf3sBRa3CJ5bQ==
+  pulumi_python:mailgunDomain: "deepakcsye6225.me"
+  pulumi_python:maxSize: "3"
+  pulumi_python:minSize: "1"
   pulumi_python:myParameterGroupName: "myparametergroup"
+  pulumi_python:period: "60"
   pulumi_python:privateRtName: "privateRouteTable"
   pulumi_python:privateSubnet: "privateSubnet"
   pulumi_python:publicCidrBlock: "0.0.0.0/0"
   pulumi_python:publicRtName: "publicRouteTable"
   pulumi_python:publicSubnet: "publicSubnet"
+  pulumi_python:snsTopicName: "mycsye6225sns"
   pulumi_python:storageType: "gp2"
   pulumi_python:subnetMask: "24"
+  pulumi_python:upThreshold: "3"
   pulumi_python:vpcCidrBlock: "10.0.0.0/16"
   pulumi_python:vpcName: "vpc"
-  pulumi_python:keyPair: "deepak-dev-keypair"
-  pulumi_python:ec2Name: "web-app"
-  pulumi_python:domainName: "dev.deepakcsye6225.me"
-  pulumi_python:hosted_zone_id: "Z081572234LPBC8PBCQ6V"
-  pulumi_python:applicationPort: "5000"
-  pulumi_python:listenerPort: "80"
-  pulumi_python:maxSize: "3"
-  pulumi_python:minSize: "1"
-  pulumi_python:cap: "1"
-  pulumi_python:coolDown: "60"
-  pulumi_python:period: "60"
-  pulumi_python:upThreshold: "3"
-  pulumi_python:downThreshold: "1"
