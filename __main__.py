@@ -2,19 +2,33 @@
 
 import pulumi
 import pulumi_aws as aws
+import base64
+import pulumi_gcp as gcp
+import json
+
 
 # Load configurations
 config = pulumi.Config("pulumi_python")
 aws_config = pulumi.Config("aws")
+gcp_config = pulumi.Config("gcp")
 
 # Get the AWS profile from the config
 aws_profile = aws_config.require("profile")
 
 # Get AWS region from configuration
-region = aws_config.require("region")
+aws_region = aws_config.require("aws_region")
+
+# Get the GCP project Id from the config
+gcp_projectId = gcp_config.require("projectId")
+
+# Get GCP region from configuration
+gcp_region = gcp_config.require("gcp_region")
 
 # Configure AWS provider with the specified region
-provider = aws.Provider("provider", region=region, profile=aws_profile)
+aws_provider = aws.Provider("aws_provider", region=aws_region, profile=aws_profile)
+
+# Configure GCP provider with the specified region
+gcp_provider = gcp.Provider("gcp_provider", project=gcp_projectId, region=gcp_region)
 
 vpcName = config.require("vpcName")
 vpcCidrBlock = config.require("vpcCidrBlock")
@@ -50,12 +64,45 @@ coolDown = config.require("coolDown")
 period = config.require("period")
 upThreshold = config.require("upThreshold")
 downThreshold = config.require("downThreshold")
+snsTopicName = config.require("snsTopicName")
+bucketAccountId = config.require("bucketAccountId")
+bucketDisplayName = config.require("bucketDisplayName")
+gcpBucketName = config.require("gcpBucketName")
+location = config.require("location")
+mailgunApiKey = config.require_secret("mailgunApiKey")
+mailgunDomain = config.require("mailgunDomain")
+DynamoDbTableName = config.require("DynamoDbTableName")
+lambdaFilePath = config.require("lambdaFilePath")
 
+
+# Create a Google Service Account
+bucket_service_account = gcp.serviceaccount.Account("myBucketAccount",
+    account_id=bucketAccountId,
+    display_name=bucketDisplayName
+    )
+
+# Assign the Service Account Admin role to the newly created service account
+service_account_admin_binding = gcp.projects.IAMBinding("serviceAccountAdminBinding",
+    members=[pulumi.Output.concat("serviceAccount:", bucket_service_account.email)],
+    role="roles/iam.serviceAccountAdmin",
+    project=gcp_projectId)
+
+# Create a Google Cloud Storage Bucket
+bucket = gcp.storage.Bucket("myBucket",
+    name=gcpBucketName,
+    location=location,
+    force_destroy=True)
+
+# Create access key for the bucket service account
+bucket_service_account_key = gcp.serviceaccount.Key("bucketAccessKey",
+    service_account_id=bucket_service_account.name,
+    public_key_type="TYPE_X509_PEM_FILE")
 
 # Create a new VPC for the current AWS region.
 vpc = aws.ec2.Vpc(vpcName,
                   cidr_block=vpcCidrBlock,
                   tags= {"Name": vpcName})
+
 
 #fetching the available az's
 available_azs = aws.get_availability_zones(state="available")
@@ -134,6 +181,116 @@ for i, subnet_id in enumerate(private_subnet_ids):
         subnet_id=subnet_id
     )
 
+# Create an SNS topic
+sns_topic = aws.sns.Topic("myTopic", name=snsTopicName)
+
+sns_topic_arn = pulumi.Output.all(gcp_region, bucketAccountId, snsTopicName).apply(
+    lambda args: f"arn:aws:sns:{args[0]}:{args[1]}:{args[2]}"
+)
+
+# Define a Lambda role with an AssumeRolePolicy
+lambda_role = aws.iam.Role("lambdaRole",
+    assume_role_policy=json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "lambda.amazonaws.com",
+            },
+        }],
+    })
+)
+
+# Attach the basic execution role policy to the Lambda role
+aws.iam.RolePolicyAttachment("lambdaBasicExecutionRoleAttachment",
+    role=lambda_role.name,
+    policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+)
+
+# Attach the Amazon SNS full access policy to the Lambda role
+aws.iam.RolePolicyAttachment("lambdaSnsFullAccessPolicyAttachment",
+    role=lambda_role.name,
+    policy_arn="arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+)
+
+# Define a DynamoDB table
+dynamodb_table = aws.dynamodb.Table("myDynamoDbTable",
+    name=DynamoDbTableName,
+    attributes=[aws.dynamodb.TableAttributeArgs(
+        name="id",
+        type="S"
+    )],
+    hash_key="id",
+    billing_mode="PAY_PER_REQUEST"
+)
+
+# Create a policy for DynamoDB operations
+dynamodb_policy = aws.iam.Policy("dynamoDbPolicy",
+    description="A policy for DynamoDB operations",
+    policy=dynamodb_table.arn.apply(lambda arn: json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Action": [
+                "dynamodb:PutItem",
+                "dynamodb:GetItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:Query",
+                "dynamodb:Scan"
+            ],
+            "Effect": "Allow",
+            "Resource": arn,
+        }],
+    }))
+)
+
+# Attach the DynamoDB policy to the Lambda role
+aws.iam.RolePolicyAttachment("lambdaDynamoDbPolicyAttachment",
+    role=lambda_role.name,
+    policy_arn=dynamodb_policy.arn
+)
+
+# Define your Lambda function
+lambda_function = aws.lambda_.Function("myLambdaFunction",
+    runtime=aws.lambda_.Runtime.PYTHON_3_11,
+    code=pulumi.FileArchive(lambdaFilePath),  
+    handler="main.handler",
+    role=lambda_role.arn,
+    environment=aws.lambda_.FunctionEnvironmentArgs(
+        variables={
+            "GOOGLE_CREDENTIALS": bucket_service_account_key.private_key.apply(
+                lambda key: key.encode('utf-8').decode('utf-8')  
+            ),
+            "GCS_BUCKET_NAME": gcpBucketName,
+            "MAILGUN_API_KEY": mailgunApiKey,
+            "MAILGUN_DOMAIN": mailgunDomain,
+            "DYNAMODB_TABLE": DynamoDbTableName,
+            "REGION": gcp_region
+        },
+    ),
+)
+
+# Create an SNS topic subscription for the Lambda function
+lambda_subscription = aws.sns.TopicSubscription("myLambdaSubscription",
+    topic=sns_topic.arn,
+    protocol="lambda",
+    endpoint=lambda_function.arn,
+)
+
+# Grant permission to SNS to invoke the Lambda function
+lambda_permission = aws.lambda_.Permission("myLambdaPermission",
+    action="lambda:InvokeFunction",
+    function=lambda_function.name,
+    principal="sns.amazonaws.com",
+    source_arn=sns_topic.arn,
+)
+
+# Attach the roles/storage.objectCreator role to the service account for the bucket
+bucket_iam_binding = gcp.storage.BucketIAMBinding("myBucketIamBinding",
+    bucket=gcpBucketName,
+    role="roles/storage.objectCreator",
+    members=[pulumi.Output.concat("serviceAccount:", pulumi.Output.secret(bucket_service_account.email))]) 
+
 lbSecurityGroup = aws.ec2.SecurityGroup("lb-sg",
     vpc_id=vpc.id,
     description="Load Balancer Security Group",
@@ -171,14 +328,14 @@ appSecurityGroup = aws.ec2.SecurityGroup("app-sg",
             "protocol": "tcp",
             "from_port": 22,
             "to_port": 22,
-            "cidr_blocks": [lbSecurityGroup.id]
+            "security_groups": [lbSecurityGroup.id]
         },
         
         {
             "protocol": "tcp",
             "from_port": applicationPort,
             "to_port": applicationPort,
-            "cidr_blocks": [lbSecurityGroup.id]
+            "security_groups": [lbSecurityGroup.id]
         },
     ],
     egress=[
@@ -255,7 +412,7 @@ db_instance = aws.rds.Instance("mydbinstance",
 
 
 def user_data(args):
-    endpoint, username, password, database_name = args
+    endpoint, username, password, database_name, aws_region, bucketAccountId, snsTopicName = args
     parts = endpoint.split(':')
     endpoint_host = parts[0]
     db_port = parts[1] if len(parts) > 1 else 'defaultPort'
@@ -271,6 +428,8 @@ echo "DBPASS={password}" >> $ENV_FILE
 echo "DATABASE={database_name}" >> $ENV_FILE
 echo "PORT=5000" >> $ENV_FILE
 echo "CSV_PATH=/home/ec2-user/webapp/users.csv" >> $ENV_FILE
+echo "SNS_TOPIC_ARN=arn:aws:sns:{aws_region}:{bucketAccountId}:{snsTopicName}" >>$ENV_FILE
+echo "AWS_REGION= ${aws_region}" >> $ENV_FILE
 
 # Optionally, you can change the owner and group of the file if needed
 sudo chown ec2-user:ec2-group $ENV_FILE
@@ -284,34 +443,50 @@ sudo systemctl restart amazon-cloudwatch-agent
 """
     return bash_script
 
-user_data_script = pulumi.Output.all(db_instance.endpoint, dbUsername, dbPassword, dbName).apply(user_data)
+user_data_script = pulumi.Output.all(db_instance.endpoint, dbUsername, dbPassword, dbName, aws_region, bucketAccountId, snsTopicName).apply(user_data)
 
 cloud_watch_agent_server_policy = aws.iam.Policy("cloudWatchAgentServerPolicy",
-    description="A policy that allows sending logs to CloudWatch",
-    policy={
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "cloudwatch:PutMetricData",
-                    "ec2:DescribeVolumes",
-                    "ec2:DescribeTags",
-                    "logs:PutLogEvents",
-                    "logs:DescribeLogStreams",
-                    "logs:DescribeLogGroups",
-                    "logs:CreateLogStream",
-                    "logs:CreateLogGroup"
-                ],
-                "Resource": "*"
-            },
-            {
-                "Effect": "Allow",
-                "Action": ["ssm:GetParameter"],
-                "Resource": "arn:aws:ssm:*:*:parameter/AmazonCloudWatch-*"
-            }
-        ]
-    })
+    description="A policy that allows sending logs to CloudWatch and publishing to SNS topics",
+    policy=pulumi.Output.all(aws_region, bucketAccountId, snsTopicName).apply(
+        lambda args: json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "cloudwatch:PutMetricData",
+                        "ec2:DescribeVolumes",
+                        "ec2:DescribeTags",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogStreams",
+                        "logs:DescribeLogGroups",
+                        "logs:CreateLogStream",
+                        "logs:CreateLogGroup",
+                        "elasticloadbalancing:Describe*",
+                        "autoscaling:DescribeAutoScalingGroups",
+                        "autoscaling:DescribeAutoScalingInstances",
+                        "autoscaling:DescribeLaunchConfigurations",
+                        "autoscaling:DescribePolicies",
+                        "sns:Publish",
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "ssm:GetParameter"
+                    ],
+                    "Resource": "arn:aws:ssm:*:*:parameter/AmazonCloudWatch-*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": "sns:Publish",
+                    "Resource": f"arn:aws:sns:{args[0]}:{args[1]}:{args[2]}"
+                }
+            ]
+        })
+    )
+)
 
 role = aws.iam.Role("cloudWatchAgentRole",
     assume_role_policy={
@@ -389,7 +564,7 @@ launch_template = aws.ec2.LaunchTemplate("launch_template",
         associate_public_ip_address=True,
         security_groups=[appSecurityGroup.id],
     )],
-    user_data=user_data,  
+    user_data=pulumi.Output.secret(user_data_script).apply(lambda ud: base64.b64encode(ud.encode('utf-8')).decode('utf-8')),  
     iam_instance_profile=aws.ec2.LaunchTemplateIamInstanceProfileArgs(
         name=instance_profile.name,
     ))
@@ -492,4 +667,8 @@ pulumi.export("recordName",aRecord.name)
 pulumi.export("recordType",aRecord.type)
 # pulumi.export("recordTtl",a_record.ttl)
 pulumi.export("lbSecurityGroup",lbSecurityGroup.id)
+pulumi.export("snsTopicArn",sns_topic_arn)
+pulumi.export("gcpBucketName",gcpBucketName)
+pulumi.export("serviceAccountEmail",bucket_service_account.email)
+pulumi.export("bucketServiceAccountKeyName",bucketAccountId)
 

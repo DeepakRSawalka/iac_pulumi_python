@@ -1,8 +1,8 @@
 config:
   aws:profile: dev
-  aws:region: us-east-1
+  aws:aws_region: us-east-1
   pulumi_python:allocatedStorage: "20"
-  pulumi_python:amiId: "ami-00443cd3149898718"
+  pulumi_python:amiId: "ami-0a1f1399e2bf1fc13"
   pulumi_python:dbName: "app_db"
   pulumi_python:dbPassword:
     secure: AAABALlAbT+YdzwQPQQrgYhPEbo5JvOjDR8owNOuPNkVNIHMpy3uHA==
