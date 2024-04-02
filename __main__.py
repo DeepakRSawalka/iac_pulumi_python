@@ -73,6 +73,7 @@ mailgunApiKey = config.require_secret("mailgunApiKey")
 mailgunDomain = config.require("mailgunDomain")
 DynamoDbTableName = config.require("DynamoDbTableName")
 lambdaFilePath = config.require("lambdaFilePath")
+accountId = config.require("accountId")
 
 
 # Create a Google Service Account
@@ -184,7 +185,7 @@ for i, subnet_id in enumerate(private_subnet_ids):
 # Create an SNS topic
 sns_topic = aws.sns.Topic("myTopic", name=snsTopicName)
 
-sns_topic_arn = pulumi.Output.all(aws_region, bucketAccountId, snsTopicName).apply(
+sns_topic_arn = pulumi.Output.all(aws_region,accountId, snsTopicName).apply(
     lambda args: f"arn:aws:sns:{args[0]}:{args[1]}:{args[2]}"
 )
 
@@ -204,13 +205,13 @@ lambda_role = aws.iam.Role("lambdaRole",
 
 # Attach the basic execution role policy to the Lambda role
 aws.iam.RolePolicyAttachment("lambdaBasicExecutionRoleAttachment",
-    role=lambda_role,
+    role=lambda_role.name,
     policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 )
 
 # Attach the Amazon SNS full access policy to the Lambda role
 aws.iam.RolePolicyAttachment("lambdaSnsFullAccessPolicyAttachment",
-    role=lambda_role,
+    role=lambda_role.name,
     policy_arn="arn:aws:iam::aws:policy/AmazonSNSFullAccess"
 )
 
@@ -246,21 +247,22 @@ dynamodb_policy = aws.iam.Policy("dynamoDbPolicy",
 
 # Attach the DynamoDB policy to the Lambda role
 aws.iam.RolePolicyAttachment("lambdaDynamoDbPolicyAttachment",
-    role=lambda_role,
+    role=lambda_role.name,
     policy_arn=dynamodb_policy.arn
 )
 
 # Define your Lambda function
 lambda_function = aws.lambda_.Function("myLambdaFunction",
     runtime=aws.lambda_.Runtime.PYTHON3D11,
-    code=pulumi.FileArchive(lambdaFilePath),  
+    code=pulumi.AssetArchive({
+        ".": pulumi.FileArchive(lambdaFilePath)  
+    }),  
     handler="main.handler",
     role=lambda_role.arn,
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables={
             "GOOGLE_CREDENTIALS": bucket_service_account_key.private_key.apply(
-                lambda key: key.encode('utf-8').decode('utf-8')  
-            ),
+                lambda key: json.dumps(key)),
             "GCS_BUCKET_NAME": gcpBucketName,
             "MAILGUN_API_KEY": mailgunApiKey,
             "MAILGUN_DOMAIN": mailgunDomain,
@@ -428,7 +430,7 @@ echo "DBPASS={password}" >> $ENV_FILE
 echo "DATABASE={database_name}" >> $ENV_FILE
 echo "PORT=5000" >> $ENV_FILE
 echo "CSV_PATH=/home/ec2-user/webapp/users.csv" >> $ENV_FILE
-echo "SNS_TOPIC_ARN=arn:aws:sns:{aws_region}:{bucketAccountId}:{snsTopicName}" >>$ENV_FILE
+echo "SNS_TOPIC_ARN=arn:aws:sns:{aws_region}:{accountId}:{snsTopicName}" >>$ENV_FILE
 echo "AWS_REGION= {aws_region}" >> $ENV_FILE
 
 # Optionally, you can change the owner and group of the file if needed
@@ -447,7 +449,7 @@ user_data_script = pulumi.Output.all(db_instance.endpoint, dbUsername, dbPasswor
 
 cloud_watch_agent_server_policy = aws.iam.Policy("cloudWatchAgentServerPolicy",
     description="A policy that allows sending logs to CloudWatch and publishing to SNS topics",
-    policy=pulumi.Output.all(aws_region, bucketAccountId, snsTopicName).apply(
+    policy=pulumi.Output.all(aws_region, accountId, snsTopicName).apply(
         lambda args: json.dumps({
             "Version": "2012-10-17",
             "Statement": [

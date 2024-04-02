@@ -6,7 +6,7 @@ config:
   pulumi_python:DynamoDbTableName: "csye6225DynamoDb"
   pulumi_python:accountId: "685750396583"
   pulumi_python:allocatedStorage: "20"
-  pulumi_python:amiId: "ami-0234d56286327294a"
+  pulumi_python:amiId: "ami-022bb77b9d221caec"
   pulumi_python:applicationPort: "5000"
   pulumi_python:bucketAccountId: "bucketdevid04"
   pulumi_python:bucketDisplayName: "bucketDevServiceAccount"
