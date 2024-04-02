@@ -1,8 +1,8 @@
 config:
-  aws:aws_region: us-east-1
+  aws:region: us-east-1
   aws:profile: prod
-  gcp:gcp_region: us-east4
-  gcp:projectId: csye6225-demo-405701
+  gcp:region: us-east4
+  gcp:project: csye6225-demo-405701
   pulumi_python:DynamoDbTableName: "csye6225DynamoDb"
   pulumi_python:accountId: "998931800090"
   pulumi_python:allocatedStorage: "20"
