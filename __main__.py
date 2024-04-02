@@ -16,13 +16,13 @@ gcp_config = pulumi.Config("gcp")
 aws_profile = aws_config.require("profile")
 
 # Get AWS region from configuration
-aws_region = aws_config.require("aws_region")
+aws_region = aws_config.require("region")
 
 # Get the GCP project Id from the config
-gcp_projectId = gcp_config.require("projectId")
+gcp_projectId = gcp_config.require("project")
 
 # Get GCP region from configuration
-gcp_region = gcp_config.require("gcp_region")
+gcp_region = gcp_config.require("region")
 
 # Configure AWS provider with the specified region
 aws_provider = aws.Provider("aws_provider", region=aws_region, profile=aws_profile)
@@ -184,7 +184,7 @@ for i, subnet_id in enumerate(private_subnet_ids):
 # Create an SNS topic
 sns_topic = aws.sns.Topic("myTopic", name=snsTopicName)
 
-sns_topic_arn = pulumi.Output.all(gcp_region, bucketAccountId, snsTopicName).apply(
+sns_topic_arn = pulumi.Output.all(aws_region, bucketAccountId, snsTopicName).apply(
     lambda args: f"arn:aws:sns:{args[0]}:{args[1]}:{args[2]}"
 )
 
@@ -204,13 +204,13 @@ lambda_role = aws.iam.Role("lambdaRole",
 
 # Attach the basic execution role policy to the Lambda role
 aws.iam.RolePolicyAttachment("lambdaBasicExecutionRoleAttachment",
-    role=lambda_role.name,
+    role=lambda_role,
     policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 )
 
 # Attach the Amazon SNS full access policy to the Lambda role
 aws.iam.RolePolicyAttachment("lambdaSnsFullAccessPolicyAttachment",
-    role=lambda_role.name,
+    role=lambda_role,
     policy_arn="arn:aws:iam::aws:policy/AmazonSNSFullAccess"
 )
 
@@ -246,13 +246,13 @@ dynamodb_policy = aws.iam.Policy("dynamoDbPolicy",
 
 # Attach the DynamoDB policy to the Lambda role
 aws.iam.RolePolicyAttachment("lambdaDynamoDbPolicyAttachment",
-    role=lambda_role.name,
+    role=lambda_role,
     policy_arn=dynamodb_policy.arn
 )
 
 # Define your Lambda function
 lambda_function = aws.lambda_.Function("myLambdaFunction",
-    runtime=aws.lambda_.Runtime.PYTHON_3_11,
+    runtime=aws.lambda_.Runtime.PYTHON3D11,
     code=pulumi.FileArchive(lambdaFilePath),  
     handler="main.handler",
     role=lambda_role.arn,
@@ -265,7 +265,7 @@ lambda_function = aws.lambda_.Function("myLambdaFunction",
             "MAILGUN_API_KEY": mailgunApiKey,
             "MAILGUN_DOMAIN": mailgunDomain,
             "DYNAMODB_TABLE": DynamoDbTableName,
-            "REGION": gcp_region
+            "REGION": aws_region
         },
     ),
 )
@@ -429,7 +429,7 @@ echo "DATABASE={database_name}" >> $ENV_FILE
 echo "PORT=5000" >> $ENV_FILE
 echo "CSV_PATH=/home/ec2-user/webapp/users.csv" >> $ENV_FILE
 echo "SNS_TOPIC_ARN=arn:aws:sns:{aws_region}:{bucketAccountId}:{snsTopicName}" >>$ENV_FILE
-echo "AWS_REGION= ${aws_region}" >> $ENV_FILE
+echo "AWS_REGION= {aws_region}" >> $ENV_FILE
 
 # Optionally, you can change the owner and group of the file if needed
 sudo chown ec2-user:ec2-group $ENV_FILE
