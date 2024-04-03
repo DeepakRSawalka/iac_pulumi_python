@@ -654,8 +654,6 @@ aRecord = aws.route53.Record("aRecord",
     }]
 )
 
-
-
 pulumi.export("vpcId", vpc.id)
 pulumi.export("publicSubnetIds", pulumi.Output.all(*public_subnet_ids))
 pulumi.export("privateSubnetIds", pulumi.Output.all(*private_subnet_ids))
