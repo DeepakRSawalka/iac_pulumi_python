@@ -5,7 +5,8 @@
 ## Prerequisites
 
 <ul>
-<li> Ensure you have [Pulumi](https://www.pulumi.com/docs/get-started/) installed on your machine.</li>
+<li> Ensure you have <ul>
+<li> Ensure you have [Pulumi](https://www.pulumi.com/docs/get-started/) installed on your machine.</li> installed on your machine.</li>
 
 <li>Create AWS and GCP accounts, and have both the AWS CLI and GCP CLI installed and configured with your respective credentials.</li>
 </ul>
@@ -32,22 +33,22 @@ pip install -r requirements.txt
 
 **Step 1** : Initialize a New Pulumi Project 
 ```bash
-pulumi new *< project-name >*
+pulumi new <project-name>
 ```
 This command will prompt you to enter a project name and stack name. The stack corresponds to your deployment environment (e.g., dev, test, or prod).
 
 **Step 2** : Create new Stack (if working with multiple environments)
 ```bash
-pulumi stack init *< stack-name >*
+pulumi stack init <stack-name>
 ```
 **Step 3** : Configure your Stack 
 ```bash
-pulumi config set < key > < value > [--path] [--plaintext] [--secret]
+pulumi config set <key> <value> [--path] [--plaintext] [--secret]
 ```
 <ul>
-<li> <key> : The configuration key to set. This usually follows the format < namespace >:< configName >.
-< value >: The value to assign to the key.</li>
-<li>--path: Specifies that the key should be treated as a path to a property in a map or list to set.</li>
-<li>--plaintext: Stores the value as plaintext (this is the default behavior).</li>
-<li>--secret: Stores the value as a secret.</li> 
+<li> <b><i>&lt;key&gt;</i></b> : The configuration key to set. This usually follows the format <b><i>&lt;namespace&gt;</i></b>:<b><i>&lt;configName&gt;</i></b>.
+<b><i>&lt;value&gt;</i></b>: The value to assign to the key.</li>
+<li><b><i>--path</i></b>: Specifies that the key should be treated as a path to a property in a map or list to set.</li>
+<li><b><i>--plaintext</b></i>: Stores the value as plaintext (this is the default behavior).</li>
+<li><b><i>--secret</b></i>: Stores the value as a secret.</li> 
 </ul>
