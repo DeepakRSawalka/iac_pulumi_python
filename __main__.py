@@ -97,7 +97,7 @@ bucket = gcp.storage.Bucket("myBucket",
 # Create access key for the bucket service account
 bucket_service_account_key = gcp.serviceaccount.Key("bucketAccessKey",
     service_account_id=bucket_service_account.name,
-    public_key_type="TYPE_X509_PEM_FILE")
+    key_algorithm= "KEY_ALG_RSA_2048")
 
 # Create a new VPC for the current AWS region.
 vpc = aws.ec2.Vpc(vpcName,
@@ -262,7 +262,7 @@ lambda_function = aws.lambda_.Function("myLambdaFunction",
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables={
             "GOOGLE_CREDENTIALS": bucket_service_account_key.private_key.apply(
-                lambda key: json.dumps(key)),
+                lambda key: key),
             "GCS_BUCKET_NAME": gcpBucketName,
             "MAILGUN_API_KEY": mailgunApiKey,
             "MAILGUN_DOMAIN": mailgunDomain,
@@ -653,8 +653,6 @@ aRecord = aws.route53.Record("aRecord",
         "evaluate_target_health": True,
     }]
 )
-
-
 
 pulumi.export("vpcId", vpc.id)
 pulumi.export("publicSubnetIds", pulumi.Output.all(*public_subnet_ids))
