@@ -6,7 +6,7 @@
 
 <ul>
 <li> Ensure you have <ul>
-<li> Ensure you have [Pulumi](https://www.pulumi.com/docs/get-started/) installed on your machine.</li> installed on your machine.</li>
+<li> Ensure you have <a href="https://www.pulumi.com/docs/get-started/">Pulumi</a> installed on your machine.</li> installed on your machine.</li>
 
 <li>Create AWS and GCP accounts, and have both the AWS CLI and GCP CLI installed and configured with your respective credentials.</li>
 </ul>
@@ -52,3 +52,29 @@ pulumi config set <key> <value> [--path] [--plaintext] [--secret]
 <li><b><i>--plaintext</b></i>: Stores the value as plaintext (this is the default behavior).</li>
 <li><b><i>--secret</b></i>: Stores the value as a secret.</li> 
 </ul>
+
+**Step 4** : To switch to a specific stack within the Pulumi project
+```bash
+pulumi stack select <stack-name>
+```
+**Step 5** : Deploy your infrastructure to the cloud with: 
+```bash
+pulumi up
+```
+**Step 6** : To down your infrastructure and remove all resources 
+```bash
+pulumi destroy
+```
+**Step 7** : To sync the state of your infrastructure with the actual state in the cloud 
+```bash
+pulumi refresh
+```
+## Optional
+**Step 8** : To remove Pulumi stack
+```bash
+pulumi stack rm <stack-name> 
+```
+**Step 9** : To see list of all stacks in a Pulumi project
+```bash
+pulumi stack ls 
+```
