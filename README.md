@@ -16,7 +16,7 @@
 ```bash
 git clone git@github.com:DeepakSawalka/iac_pulumi_python.git
 ```
-**Step 2** : Create Virtual Environment inside IAC_PULUMI_PYTHON folder
+**Step 2** : Create Virtual Environment inside the folder
 ```bash
 python3 -m venv .venv
 ```
@@ -32,21 +32,21 @@ pip install -r requirements.txt
 
 **Step 1** : Initialize a New Pulumi Project 
 ```bash
-pulumi new *<project-name>*
+pulumi new *< project-name >*
 ```
 This command will prompt you to enter a project name and stack name. The stack corresponds to your deployment environment (e.g., dev, test, or prod).
 
 **Step 2** : Create new Stack (if working with multiple environments)
 ```bash
-pulumi stack init *<stack-name>*
+pulumi stack init *< stack-name >*
 ```
 **Step 3** : Configure your Stack 
 ```bash
-pulumi config set <key> <value> [--path] [--plaintext] [--secret]
+pulumi config set < key > < value > [--path] [--plaintext] [--secret]
 ```
 <ul>
-<li><key>: The configuration key to set. This usually follows the format <namespace>:<configName>.
-<value>: The value to assign to the key.</li>
+<li> <key> : The configuration key to set. This usually follows the format < namespace >:< configName >.
+< value >: The value to assign to the key.</li>
 <li>--path: Specifies that the key should be treated as a path to a property in a map or list to set.</li>
 <li>--plaintext: Stores the value as plaintext (this is the default behavior).</li>
 <li>--secret: Stores the value as a secret.</li> 
