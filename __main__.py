@@ -261,8 +261,8 @@ lambda_function = aws.lambda_.Function("myLambdaFunction",
     role=lambda_role.arn,
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables={
-            "GOOGLE_CREDENTIALS": bucket_service_account_key.private_key.apply(
-                lambda key: key),
+            "GOOGLE_APPLICATION_CREDENTIALS": bucket_service_account_key.private_key.apply(
+    lambda key: base64.b64decode(key).decode('utf-8')),
             "GCS_BUCKET_NAME": gcpBucketName,
             "MAILGUN_API_KEY": mailgunApiKey,
             "MAILGUN_DOMAIN": mailgunDomain,
@@ -296,82 +296,88 @@ bucket_iam_binding = gcp.storage.BucketIAMBinding("myBucketIamBinding",
 lbSecurityGroup = aws.ec2.SecurityGroup("lb-sg",
     vpc_id=vpc.id,
     description="Load Balancer Security Group",
-    ingress=[
-        {
-            "protocol": "tcp",
-            "from_port": 80,
-            "to_port": 80,
-            "cidr_blocks": [publicCidrBlock]
-        },
-        {
-            "protocol": "tcp",
-            "from_port": 443,
-            "to_port": 443,
-            "cidr_blocks": [publicCidrBlock]
-        },
-    ],
-    egress=[
-        # Allow all outgoing traffic from the load balancer
-        {
-            "protocol": "-1",
-            "from_port": 0,
-            "to_port": 0,
-            "cidr_blocks": [publicCidrBlock]
-        },
-    ])
+)
 
+aws.ec2.SecurityGroupRule("lb-ingress-http",
+    type="ingress",
+    from_port=80,
+    to_port=80,
+    protocol="tcp",
+    cidr_blocks=[publicCidrBlock],
+    security_group_id=lbSecurityGroup.id,
+)
+
+aws.ec2.SecurityGroupRule("lb-ingress-https",
+    type="ingress",
+    from_port=443,
+    to_port=443,
+    protocol="tcp",
+    cidr_blocks=[publicCidrBlock],
+    security_group_id=lbSecurityGroup.id,
+)
+
+aws.ec2.SecurityGroupRule("lb-egress",
+    type="egress",
+    from_port=0,
+    to_port=0,
+    protocol="-1",
+    cidr_blocks=[publicCidrBlock],
+    security_group_id=lbSecurityGroup.id,
+)
 
 appSecurityGroup = aws.ec2.SecurityGroup("app-sg",
     vpc_id=vpc.id,
     description="Application Security Group",
-    ingress=[
-        # Allow SSH (22) traffic 
-        {
-            "protocol": "tcp",
-            "from_port": 22,
-            "to_port": 22,
-            "security_groups": [lbSecurityGroup.id]
-        },
-        
-        {
-            "protocol": "tcp",
-            "from_port": applicationPort,
-            "to_port": applicationPort,
-            "security_groups": [lbSecurityGroup.id]
-        },
-    ],
-    egress=[
-        # Allow all outgoing traffic
-        {
-            "protocol": "-1",
-            "from_port": 0,
-            "to_port": 0,
-            "cidr_blocks": [publicCidrBlock]
-        },
-    ],
+)
+
+aws.ec2.SecurityGroupRule("app-ingress-ssh",
+    type="ingress",
+    from_port=22,
+    to_port=22,
+    protocol="tcp",
+    security_group_id=appSecurityGroup.id,
+    source_security_group_id=lbSecurityGroup.id,
+)
+
+aws.ec2.SecurityGroupRule("app-ingress-app",
+    type="ingress",
+    from_port=applicationPort,
+    to_port=applicationPort,
+    protocol="tcp",
+    security_group_id=appSecurityGroup.id,
+    source_security_group_id=lbSecurityGroup.id,
+)
+
+aws.ec2.SecurityGroupRule("app-egress",
+    type="egress",
+    from_port=0,
+    to_port=0,
+    protocol="-1",
+    cidr_blocks=[publicCidrBlock],
+    security_group_id=appSecurityGroup.id,
 )
 
 rdsSecurityGroup = aws.ec2.SecurityGroup("rds-sg",
     vpc_id=vpc.id,
     description="RDS Security Group",
-    ingress=[
-        # Allow PostgreSQL (5432) traffic from the application security group
-        {
-            "protocol": "tcp",
-            "from_port": 5432,
-            "to_port": 5432,
-            "security_groups": [appSecurityGroup.id]  
-        }
-    ],
-    egress=[
-        # Restrict all outgoing internet traffic
-        {
-            "protocol": "tcp",
-            "from_port": 0,
-            "to_port": 0,
-            "cidr_blocks": [publicCidrBlock]
-        }
-    ]
+)
+
+aws.ec2.SecurityGroupRule("rds-ingress-pgsql",
+    type="ingress",
+    from_port=5432,
+    to_port=5432,
+    protocol="tcp",
+    security_group_id=rdsSecurityGroup.id,
+    source_security_group_id=appSecurityGroup.id,
+)
+
+aws.ec2.SecurityGroupRule("rds-egress",
+    type="egress",
+    from_port=0,
+    to_port=0,
+    protocol="-1",
+    security_group_id=[publicCidrBlock],
+    source_security_group_id=appSecurityGroup.id,
 )
 
 dbParameterGroup = aws.rds.ParameterGroup(myParameterGroupName,
