@@ -5,8 +5,7 @@
 ## Prerequisites
 
 <ul>
-<li> Ensure you have <ul>
-<li> Ensure you have <a href="https://www.pulumi.com/docs/get-started/">Pulumi</a> installed on your machine.</li> installed on your machine.</li>
+<li> Ensure you have <a href="https://www.pulumi.com/docs/get-started/">Pulumi</a> installed on your machine.</li>
 
 <li>Create AWS and GCP accounts, and have both the AWS CLI and GCP CLI installed and configured with your respective credentials.</li>
 </ul>
