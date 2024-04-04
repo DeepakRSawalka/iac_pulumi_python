@@ -1,12 +1,12 @@
 config:
-  aws:region: us-east-1
   aws:profile: dev
-  gcp:region: us-east4
+  aws:region: us-east-1
   gcp:project: csye6225-dev-405701
+  gcp:region: us-east4
   pulumi_python:DynamoDbTableName: "csye6225DynamoDb"
   pulumi_python:accountId: "685750396583"
   pulumi_python:allocatedStorage: "20"
-  pulumi_python:amiId: "ami-022bb77b9d221caec"
+  pulumi_python:amiId: "ami-07d544e36498c2e37"
   pulumi_python:applicationPort: "5000"
   pulumi_python:bucketAccountId: "bucketdevid04"
   pulumi_python:bucketDisplayName: "bucketDevServiceAccount"
