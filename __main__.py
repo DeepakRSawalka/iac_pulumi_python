@@ -304,7 +304,7 @@ aws.ec2.SecurityGroupRule("lb-ingress-http",
     to_port=80,
     protocol="tcp",
     cidr_blocks=[publicCidrBlock],
-    security_group_id=lbSecurityGroup.id,
+    security_group_id=lbSecurityGroup.id
 )
 
 aws.ec2.SecurityGroupRule("lb-ingress-https",
@@ -313,7 +313,7 @@ aws.ec2.SecurityGroupRule("lb-ingress-https",
     to_port=443,
     protocol="tcp",
     cidr_blocks=[publicCidrBlock],
-    security_group_id=lbSecurityGroup.id,
+    security_group_id=lbSecurityGroup.id
 )
 
 aws.ec2.SecurityGroupRule("lb-egress",
@@ -322,7 +322,7 @@ aws.ec2.SecurityGroupRule("lb-egress",
     to_port=0,
     protocol="-1",
     cidr_blocks=[publicCidrBlock],
-    security_group_id=lbSecurityGroup.id,
+    security_group_id=lbSecurityGroup.id
 )
 
 appSecurityGroup = aws.ec2.SecurityGroup("app-sg",
@@ -336,7 +336,7 @@ aws.ec2.SecurityGroupRule("app-ingress-ssh",
     to_port=22,
     protocol="tcp",
     security_group_id=appSecurityGroup.id,
-    source_security_group_id=lbSecurityGroup.id,
+    source_security_group_id=lbSecurityGroup.id
 )
 
 aws.ec2.SecurityGroupRule("app-ingress-app",
@@ -345,7 +345,7 @@ aws.ec2.SecurityGroupRule("app-ingress-app",
     to_port=applicationPort,
     protocol="tcp",
     security_group_id=appSecurityGroup.id,
-    source_security_group_id=lbSecurityGroup.id,
+    source_security_group_id=lbSecurityGroup.id
 )
 
 aws.ec2.SecurityGroupRule("app-egress",
@@ -354,7 +354,7 @@ aws.ec2.SecurityGroupRule("app-egress",
     to_port=0,
     protocol="-1",
     cidr_blocks=[publicCidrBlock],
-    security_group_id=appSecurityGroup.id,
+    security_group_id=appSecurityGroup.id
 )
 
 rdsSecurityGroup = aws.ec2.SecurityGroup("rds-sg",
@@ -368,7 +368,7 @@ aws.ec2.SecurityGroupRule("rds-ingress-pgsql",
     to_port=5432,
     protocol="tcp",
     security_group_id=rdsSecurityGroup.id,
-    source_security_group_id=appSecurityGroup.id,
+    source_security_group_id=appSecurityGroup.id
 )
 
 aws.ec2.SecurityGroupRule("rds-egress",
@@ -376,8 +376,8 @@ aws.ec2.SecurityGroupRule("rds-egress",
     from_port=0,
     to_port=0,
     protocol="-1",
-    security_group_id=[publicCidrBlock],
-    source_security_group_id=appSecurityGroup.id,
+    cidr_blocks=[publicCidrBlock],
+    security_group_id=rdsSecurityGroup.id
 )
 
 dbParameterGroup = aws.rds.ParameterGroup(myParameterGroupName,

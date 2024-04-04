@@ -22,7 +22,7 @@ python3 -m venv .venv
 ```
 **Step 3** : Activate Virtual Environment in cmd.exe 
 ```bash
-.\venv\Scripts\activate
+.\venv\Scripts\activate.bat
 ```
 **Step 4** : Install dependencies from requirements.txt file
 ```bash
@@ -46,6 +46,7 @@ pulumi config set <key> <value> [--path] [--plaintext] [--secret]
 ```
 <ul>
 <li> <b><i>&lt;key&gt;</i></b> : The configuration key to set. This usually follows the format <b><i>&lt;namespace&gt;</i></b>:<b><i>&lt;configName&gt;</i></b>.
+
 <b><i>&lt;value&gt;</i></b>: The value to assign to the key.</li>
 <li><b><i>--path</i></b>: Specifies that the key should be treated as a path to a property in a map or list to set.</li>
 <li><b><i>--plaintext</b></i>: Stores the value as plaintext (this is the default behavior).</li>
