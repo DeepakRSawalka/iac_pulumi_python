@@ -6,7 +6,7 @@ config:
   pulumi_python:DynamoDbTableName: "csye6225DynamoDb"
   pulumi_python:accountId: "998931800090"
   pulumi_python:allocatedStorage: "20"
-  pulumi_python:amiId: "ami-07d1910a890ed8e71"
+  pulumi_python:amiId: "ami-0ed503e0ec3fb6088"
   pulumi_python:applicationPort: "5000"
   pulumi_python:bucketAccountId: "bucketdemoid04"
   pulumi_python:bucketDisplayName: "bucketDemoServiceAccount"
@@ -30,7 +30,7 @@ config:
   pulumi_python:internetGatewayName: "myInternetGateway"
   pulumi_python:keyPair: "deepak-prod-keypair"
   pulumi_python:lambdaFilePath: "../serverless_python"
-  pulumi_python:listenerPort: "80"
+  pulumi_python:listenerPort: "443"
   pulumi_python:location: "US"
   pulumi_python:mailgunApiKey:
     secure: AAABAGTRMIYiWMBfZLjyCspxZBFqQSw097PcsuI3oajEY8hry+tqomI3360AM3yRdiBhM3VYP99DZlvBLdVhGXz1eK3QgMUL0as/tjv5oUqQWQ==
@@ -50,3 +50,7 @@ config:
   pulumi_python:upThreshold: "3"
   pulumi_python:vpcCidrBlock: "10.0.0.0/16"
   pulumi_python:vpcName: "vpc"
+  pulumi_python:launchTemplateName: "csye6225_launchTemplate"
+  pulumi_python:sslPolicy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  pulumi_python:certificateArnName: "arn:aws:acm:us-east-1:998931800090:certificate/7fa7b46b-853c-482e-9076-e44ee65d29c6"
+  pulumi_python:autoScalingGroupName: "webapp_asg"

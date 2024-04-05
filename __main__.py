@@ -74,7 +74,10 @@ mailgunDomain = config.require("mailgunDomain")
 DynamoDbTableName = config.require("DynamoDbTableName")
 lambdaFilePath = config.require("lambdaFilePath")
 accountId = config.require("accountId")
-
+sslPolicy = config.require("sslPolicy")
+certificateArnName = config.require("certificateArnName")
+launchTemplateName = config.require("launchTemplateName")
+autoScalingGroupName = config.require("autoScalingGroupName")
 
 # Create a Google Service Account
 bucket_service_account = gcp.serviceaccount.Account("myBucketAccount",
@@ -558,13 +561,18 @@ target_group = aws.lb.TargetGroup("targetGroup",
 listener = aws.lb.Listener("listener",
     load_balancer_arn=app_load_balancer.arn,
     port=listenerPort,
+    protocol="HTTPS",
+    ssl_policy=sslPolicy,
+    certificate_arn=certificateArnName,
     default_actions=[aws.lb.ListenerDefaultActionArgs(
         type="forward",
         target_group_arn=target_group.arn,
     )])
 
+
 # Create a Launch Template
 launch_template = aws.ec2.LaunchTemplate("launch_template",
+    name = launchTemplateName,
     image_id=amiId,
     instance_type="t2.micro",
     key_name=keyPair,
@@ -579,6 +587,7 @@ launch_template = aws.ec2.LaunchTemplate("launch_template",
 
 # Create an Auto Scaling Group
 auto_scaling_group = aws.autoscaling.Group("webAppAutoScalingGroup",
+    name = autoScalingGroupName,
     max_size=maxSize,
     min_size=minSize,
     desired_capacity=cap,
